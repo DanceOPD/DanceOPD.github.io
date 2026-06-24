@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DanceOPD: On-Policy Generative Field Distillation</title>
+  <meta name="description" content="DanceOPD performs on-policy generative field distillation for multi-capability image generation.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,800,900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/danceopd.css">
+</head>
+<body>
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <header class="header-wrapper">
+    <div class="header-container">
+      <div class="header-content">
+        <h1>
+          DanceOPD
+          <span>On-Policy Generative Field Distillation</span>
+        </h1>
+        <div class="author-list" aria-label="Authors">
+          Wei Zhou, Xiongwei Zhu, Zelin Xu, Bo Dong, Lixue Gong, Yongyuan Liang,<br class="author-break">Meng Chu, Leigang Qu, Lingdong Kong, Wei Liu, Tat-Seng Chua
+        </div>
+        <div class="affiliation-list" aria-label="Affiliations">
+          <span class="affiliation-item seed-logo"><img src="assets/icons/seed-logo-clean.png" alt="ByteDance Seed"></span>
+        </div>
+        <div class="button-container">
+          <a class="button" href="#method" aria-label="Jump to method section">
+            <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.1 2.1 3.2 5.1 3.2 9s-1.1 6.9-3.2 9M12 3C9.9 5.1 8.8 8.1 8.8 12s1.1 6.9 3.2 9M4 12h16M5.7 7.2h12.6M5.7 16.8h12.6"/></svg>
+            Method
+          </a>
+          <span class="button disabled" aria-disabled="true">
+            <svg class="button-icon arxiv-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 15.5 10.1 8h1.9l3.1 7.5M8.2 13h5.7M16.2 8l1.6 2.4L19.4 8M16.2 15.5l1.6-2.4 1.6 2.4"/></svg>
+            arXiv (Soon)
+          </span>
+          <span class="button disabled" aria-disabled="true">
+            <svg class="button-icon github-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8a9.2 9.2 0 0 0-2.9 17.9c.46.08.63-.2.63-.45v-1.58c-2.57.56-3.11-1.1-3.11-1.1-.42-1.06-1.03-1.35-1.03-1.35-.84-.58.06-.57.06-.57.93.07 1.42.96 1.42.96.83 1.41 2.17 1 2.7.77.08-.6.32-1 .58-1.23-2.05-.23-4.2-1.03-4.2-4.57 0-1.01.36-1.83.95-2.48-.1-.23-.41-1.18.09-2.45 0 0 .78-.25 2.54.95A8.8 8.8 0 0 1 12 7.27c.78 0 1.55.1 2.28.31 1.76-1.2 2.54-.95 2.54-.95.5 1.27.19 2.22.09 2.45.59.65.95 1.47.95 2.48 0 3.55-2.16 4.33-4.22 4.56.33.29.63.85.63 1.72v2.41c0 .25.17.54.64.45A9.2 9.2 0 0 0 12 2.8Z"/></svg>
+            Code (Soon)
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <d-article>
+    <d-contents>
+      <nav>
+        <h4>Contents</h4>
+        <a href="#abstract">Overview</a>
+        <a href="#challenge">Challenge</a>
+        <a href="#method">Method</a>
+        <a href="#results">Results</a>
+        <a href="#diagnostics">Diagnostics</a>
+        <a href="#qualitative">Gallery</a>
+        <a href="#citation">Citation</a>
+      </nav>
+    </d-contents>
+
+    <section id="abstract">
+      <div class="wb-section section-hero">
+        <div class="hero-callout new-callout">
+          <div class="hero-tag">Core idea</div>
+          <p class="hero-quote">
+            Treat every source capability as a velocity field, then learn where and how to query those fields on the student's own rollout.
+          </p>
+        </div>
+
+        <div class="front-method-package" aria-label="Animated method overview">
+
+<figure class="method-anim-card" aria-label="Animated DanceOPD method diagram">
+          <div class="method-anim-stage">
+            <svg class="method-anim-svg" viewBox="0 0 1680 820" role="img" aria-labelledby="methodAnimTitle methodAnimDesc">
+              <title id="methodAnimTitle">DanceOPD hard-routed on-policy field matching</title>
+              <desc id="methodAnimDesc">A sample is routed to one selected capability field, queried on a student rollout state, and trained by MSE field matching.</desc>
+              <defs>
+                <marker id="arrow-blue" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-red" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-green" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-navy" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-teal" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-gray" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-blue-cap" markerWidth="16" markerHeight="16" refX="14.2" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1.5 L15.5,8 L0,14.5 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-red-cap" markerWidth="16" markerHeight="16" refX="14.2" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1.5 L15.5,8 L0,14.5 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-green-cap" markerWidth="16" markerHeight="16" refX="14.2" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1.5 L15.5,8 L0,14.5 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-teal-cap" markerWidth="16" markerHeight="16" refX="14.2" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1.5 L15.5,8 L0,14.5 Z" fill="context-stroke"/></marker>
+                <marker id="arrow-gray-cap" markerWidth="16" markerHeight="16" refX="14.2" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1.5 L15.5,8 L0,14.5 Z" fill="context-stroke"/></marker>
+                <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#2563eb" flood-opacity=".10"/></filter>
+                <filter id="queryGlow" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#11c5c9" flood-opacity=".95"/><feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#11c5c9" flood-opacity=".35"/></filter>
+                <linearGradient id="fieldBlue" x1="0" x2="1"><stop offset="0" stop-color="#eaf4ff" stop-opacity="0"/><stop offset=".45" stop-color="#dff1ff" stop-opacity=".78"/><stop offset="1" stop-color="#eaf4ff" stop-opacity=".15"/></linearGradient>
+                <linearGradient id="fieldRed" x1="0" x2="1"><stop offset="0" stop-color="#fff1f1" stop-opacity="0"/><stop offset=".55" stop-color="#ffe5e5" stop-opacity=".72"/><stop offset="1" stop-color="#fff1f1" stop-opacity="0"/></linearGradient>
+                <linearGradient id="fieldGreen" x1="0" x2="1"><stop offset="0" stop-color="#ecfff5" stop-opacity="0"/><stop offset=".55" stop-color="#dcfbea" stop-opacity=".65"/><stop offset="1" stop-color="#ecfff5" stop-opacity="0"/></linearGradient>
+              </defs>
+
+              <rect class="method-bg" x="0" y="0" width="1600" height="820" rx="24"/>
+
+              <g class="sample-panel">
+                <rect x="24" y="216" width="124" height="260" rx="12"/>
+                <line x1="24" y1="262" x2="148" y2="262"/>
+                <text x="86" y="248" text-anchor="middle">Sample</text>
+                <g class="sample-row" transform="translate(44 282)">
+                  <rect width="42" height="42" rx="7"/>
+                  <path d="M7 32 L17 21 L25 28 L32 19 L38 32"/><circle cx="16" cy="14" r="4"/>
+                  <text x="58" y="28">T2I</text>
+                </g>
+                <g class="sample-row" transform="translate(44 352)">
+                  <path d="M1 39 C20 37 13 25 30 12 C43 2 49 8 35 20 C21 32 22 42 1 39Z"/>
+                  <text x="58" y="28">Edit</text>
+                </g>
+                <g class="sample-row" transform="translate(44 422)">
+                  <path d="M21 2 C6 2 -2 15 2 29 C6 43 21 46 36 38 C45 33 37 25 28 29 C21 32 20 24 28 22 C40 18 36 2 21 2Z"/>
+                  <circle cx="14" cy="15" r="2.7"/><circle cx="26" cy="13" r="2.7"/><circle cx="13" cy="28" r="2.7"/><circle cx="30" cy="31" r="2.7"/>
+                  <text x="58" y="28">Style</text>
+                </g>
+              </g>
+
+              <path class="sample-to-fields" d="M158 348 L205 348" marker-end="url(#arrow-gray-cap)"/>
+
+              <g class="field-blocks">
+                <g class="field field-blue selected-field">
+                  <circle cx="232" cy="212" r="8"/>
+                  <text x="282" y="136">T2I Field</text>
+                  <path class="field-ribbon" d="M250 205 C340 186 445 126 530 185 C585 222 573 270 632 294 C665 308 690 300 712 296 C664 348 595 320 546 290 C472 245 402 268 310 245 C280 238 260 226 250 205Z"/>
+                  <path class="field-main" d="M252 212 C365 222 433 147 542 204 C603 236 592 291 668 295"/>
+                  <g class="flow flow-blue">
+                    <path d="M282 198 L330 190"/><path d="M326 218 L374 212"/><path d="M384 178 L435 174"/><path d="M454 206 L506 218"/><path d="M535 204 L566 233"/><path d="M579 250 L610 275"/>
+                    <path d="M292 242 L338 238"/><path d="M363 247 L414 254"/><path d="M438 236 L484 252"/><path d="M506 270 L552 285"/>
+                  </g>
+                </g>
+                <g class="field field-red muted-field">
+                  <circle cx="232" cy="344" r="8"/>
+                  <text x="282" y="300">Edit Field</text>
+                  <path class="field-ribbon" d="M250 344 C350 314 448 298 530 344 C577 371 615 381 668 372 C617 417 550 402 486 380 C405 352 333 387 250 344Z"/>
+                  <g class="flow flow-red"><path d="M286 338 L332 330"/><path d="M344 350 L392 345"/><path d="M408 328 L454 332"/><path d="M482 356 L530 370"/><path d="M544 336 L596 344"/><path d="M320 380 L372 386"/></g>
+                </g>
+                <g class="field field-green muted-field">
+                  <circle cx="232" cy="502" r="8"/>
+                  <text x="282" y="466">Style Field</text>
+                  <path class="field-ribbon" d="M250 505 C332 488 425 494 486 542 C532 578 614 590 654 536 C599 592 531 642 445 604 C362 568 320 532 250 505Z"/>
+                  <g class="flow flow-green"><path d="M284 495 L333 502"/><path d="M344 518 L392 529"/><path d="M402 488 L452 500"/><path d="M460 542 L512 566"/><path d="M520 586 L570 596"/><path d="M316 555 L365 577"/></g>
+                </g>
+              </g>
+
+              <g class="hard-route">
+                <text x="682" y="194" text-anchor="middle">Hard</text><text x="682" y="222" text-anchor="middle">Route</text>
+                <rect x="640" y="250" width="104" height="252" rx="22"/>
+                <circle class="route-dot route-blue" cx="662" cy="294" r="9"/>
+                <circle class="route-dot route-red" cx="666" cy="386" r="11"/>
+                <circle class="route-dot route-green" cx="662" cy="475" r="9"/>
+                <g class="route-arm route-arm-blue"><path class="route-lever-shadow" d="M720 312 L662 294"/><path class="route-lever" d="M720 312 L662 294"/><circle class="route-handle" cx="662" cy="294" r="10"/></g>
+                <g class="route-arm route-arm-red"><path class="route-lever-shadow" d="M720 312 L666 386"/><path class="route-lever" d="M720 312 L666 386"/><circle class="route-handle" cx="666" cy="386" r="10"/></g>
+                <g class="route-arm route-arm-green"><path class="route-lever-shadow" d="M720 312 L662 475"/><path class="route-lever" d="M720 312 L662 475"/><circle class="route-handle" cx="662" cy="475" r="10"/></g>
+                <circle class="route-pivot" cx="720" cy="312" r="7"/>
+              </g>
+              <path class="selected-arrow" d="M745 316 L904 316" marker-end="url(#arrow-blue-cap)"/>
+              <text class="selected-label" x="842" y="276" text-anchor="middle">Selected</text><text class="selected-label" x="842" y="304" text-anchor="middle">Field</text>
+
+              <g class="latent-space" filter="url(#softShadow)">
+                <path class="latent-blob" d="M926 510 C836 521 788 458 805 368 C819 295 849 258 870 190 C904 82 1008 95 1077 151 C1160 218 1240 151 1304 136 C1412 110 1476 202 1510 296 C1548 400 1518 515 1430 548 C1324 588 1249 536 1192 560 C1096 603 1028 495 926 510Z"/>
+                <g class="latent-flow-layer latent-flow-blue">
+                  <path d="M900 194 L928 217"/><path d="M940 172 L963 202"/><path d="M991 186 L1018 220"/><path d="M1042 206 L1052 246"/><path d="M916 246 L953 259"/><path d="M975 245 L1013 260"/><path d="M1033 252 L1075 266"/>
+                  <path d="M862 292 L905 296"/><path d="M925 310 L972 314"/><path d="M996 323 L1045 326"/><path d="M1070 330 L1124 325"/><path d="M1138 300 L1162 268"/>
+                  <path d="M875 365 L916 344"/><path d="M932 388 L974 364"/><path d="M1000 386 L1046 360"/><path d="M1075 388 L1116 356"/>
+                </g>
+                <g class="latent-flow-layer latent-flow-red">
+                  <path d="M892 220 L932 211"/><path d="M948 205 L990 198"/><path d="M1006 228 L1048 215"/><path d="M1070 244 L1112 230"/><path d="M914 288 L960 292"/><path d="M985 314 L1034 312"/><path d="M1058 338 L1106 326"/>
+                  <path d="M875 376 L916 356"/><path d="M935 410 L974 384"/><path d="M1010 414 L1055 388"/><path d="M1102 394 L1148 364"/><path d="M1174 352 L1210 326"/>
+                </g>
+                <g class="latent-flow-layer latent-flow-green">
+                  <path d="M880 416 L916 386"/><path d="M918 458 L956 420"/><path d="M972 470 L1012 430"/><path d="M1036 455 L1075 412"/><path d="M1102 426 L1142 382"/><path d="M1168 388 L1206 346"/>
+                  <path d="M910 315 L946 344"/><path d="M980 286 L1014 324"/><path d="M1050 270 L1078 318"/><path d="M1118 290 L1138 338"/><path d="M1182 312 L1208 354"/>
+                  <path d="M930 520 L972 498"/><path d="M1010 520 L1050 488"/><path d="M1094 498 L1135 456"/>
+                </g>
+
+                <g class="offpolicy island-top" transform="translate(1115 52)">
+                  <path d="M0 62 C-16 6 70 0 118 15 C166 29 230 -10 260 34 C290 79 255 122 196 119 C140 115 118 98 70 105 C30 111 8 94 0 62Z"/>
+                  <g class="offdots"><circle cx="40" cy="52" r="5"/><circle cx="72" cy="70" r="5"/><circle cx="112" cy="82" r="5"/><circle cx="152" cy="65" r="5"/><circle cx="196" cy="83" r="5"/><circle cx="236" cy="57" r="5"/><circle cx="88" cy="40" r="5"/><circle cx="148" cy="33" r="5"/><circle cx="208" cy="31" r="5"/><circle cx="176" cy="105" r="5"/><circle cx="228" cy="94" r="5"/><circle cx="120" cy="52" r="5"/></g>
+                </g>
+                <text class="off-label" x="1485" y="78" text-anchor="middle">Off-policy</text><text class="off-label" x="1485" y="106" text-anchor="middle">States</text>
+                <g class="offpolicy island-mid" transform="translate(1365 438)"><path d="M4 74 C-11 22 45 0 92 20 C136 38 177 6 204 41 C232 78 198 112 144 112 C94 112 78 132 38 116 C15 107 8 90 4 74Z"/><g class="offdots"><circle cx="42" cy="58" r="5"/><circle cx="77" cy="50" r="5"/><circle cx="112" cy="61" r="5"/><circle cx="142" cy="38" r="5"/><circle cx="64" cy="86" r="5"/></g></g>
+                <g class="offpolicy island-bottom" transform="translate(1115 586)"><path d="M8 48 C25 12 76 18 115 20 C152 22 194 24 218 58 C184 91 128 94 78 84 C38 76 -5 80 8 48Z"/><g class="offdots"><circle cx="43" cy="54" r="5"/><circle cx="80" cy="50" r="5"/><circle cx="116" cy="30" r="5"/><circle cx="156" cy="46" r="5"/><circle cx="190" cy="58" r="5"/><circle cx="120" cy="68" r="5"/></g></g>
+
+                <g class="rollout-layer rollout-blue-layer">
+                  <path class="rollout" d="M830 514 C885 482 884 428 948 409 C1015 388 1008 392 1073 394 C1140 397 1173 386 1212 350 C1240 324 1260 304 1290 302"/>
+                  <g class="rollout-dots"><circle cx="830" cy="514" r="8"/><circle cx="900" cy="455" r="8"/><circle cx="1008" cy="394" r="8"/><circle cx="1125" cy="394" r="8"/><circle cx="1230" cy="360" r="8"/><circle cx="1290" cy="302" r="8"/></g>
+                </g>
+                <g class="rollout-layer rollout-red-layer">
+                  <path class="rollout" d="M832 548 C878 520 900 488 955 468 C1010 446 1048 458 1092 430 C1140 400 1175 378 1218 358 C1244 346 1268 340 1290 332"/>
+                  <g class="rollout-dots"><circle cx="832" cy="548" r="8"/><circle cx="902" cy="494" r="8"/><circle cx="955" cy="468" r="8"/><circle cx="1048" cy="458" r="8"/><circle cx="1150" cy="392" r="8"/><circle cx="1290" cy="332" r="8"/></g>
+                </g>
+                <g class="rollout-layer rollout-green-layer">
+                  <path class="rollout" d="M835 574 C900 558 940 532 990 506 C1045 478 1075 430 1132 438 C1182 445 1207 388 1245 356 C1266 338 1280 322 1290 310"/>
+                  <g class="rollout-dots"><circle cx="835" cy="574" r="8"/><circle cx="920" cy="548" r="8"/><circle cx="990" cy="506" r="8"/><circle cx="1080" cy="432" r="8"/><circle cx="1190" cy="424" r="8"/><circle cx="1290" cy="310" r="8"/></g>
+                </g>
+                <text class="rollout-label" x="970" y="522">Student Rollout</text><text class="rollout-label small" x="970" y="552">(on-policy states)</text>
+
+                <g class="semantic-query" transform="translate(1302 333)">
+                  <circle class="query-halo" r="25"/><circle class="query-ring" r="14"/><circle class="query-core" r="7"/>
+                </g>
+                <path class="semantic-pointer" d="M1302 430 L1302 356"/>
+                <text class="query-label" x="1228" y="428">Semantic Query</text><text class="query-label small" x="1260" y="454">(low-noise,</text><text class="query-label small" x="1272" y="480">single query)</text>
+
+                <g class="v-vector-layer v-vector-blue">
+                  <path class="v-selected" d="M1324 325 L1452 190" marker-end="url(#arrow-teal-cap)"/>
+                  <path class="v-student" d="M1324 325 L1510 260" marker-end="url(#arrow-gray-cap)"/>
+                  <text class="v-label selected" x="1460" y="180">v<tspan baseline-shift="sub" font-size="18">selected</tspan></text>
+                  <text class="v-label student" x="1516" y="252">v<tspan baseline-shift="sub" font-size="18">student</tspan></text>
+                </g>
+                <g class="v-vector-layer v-vector-red">
+                  <path class="v-selected" d="M1324 325 C1380 300 1435 298 1492 324" marker-end="url(#arrow-red-cap)"/>
+                  <path class="v-student" d="M1324 325 C1388 344 1452 372 1510 396" marker-end="url(#arrow-gray-cap)"/>
+                  <text class="v-label selected" x="1484" y="312">v<tspan baseline-shift="sub" font-size="18">selected</tspan></text>
+                  <text class="v-label student" x="1510" y="418">v<tspan baseline-shift="sub" font-size="18">student</tspan></text>
+                </g>
+                <g class="v-vector-layer v-vector-green">
+                  <path class="v-selected" d="M1324 325 C1362 252 1400 205 1438 160" marker-end="url(#arrow-green-cap)"/>
+                  <path class="v-student" d="M1324 325 C1388 305 1450 300 1512 315" marker-end="url(#arrow-gray-cap)"/>
+                  <text class="v-label selected" x="1436" y="152">v<tspan baseline-shift="sub" font-size="18">selected</tspan></text>
+                  <text class="v-label student" x="1514" y="310">v<tspan baseline-shift="sub" font-size="18">student</tspan></text>
+                </g>
+                <g class="mse-link-layer mse-link-blue">
+                  <path class="mse-link" d="M1450 198 C1498 238 1468 278 1494 306"/>
+                  <path class="mse-link" d="M1494 306 L1494 342"/>
+                </g>
+                <g class="mse-link-layer mse-link-red">
+                  <path class="mse-link" d="M1488 326 C1518 346 1518 380 1500 398"/>
+                  <path class="mse-link" d="M1500 398 L1500 412"/>
+                </g>
+                <g class="mse-link-layer mse-link-green">
+                  <path class="mse-link" d="M1438 166 C1496 204 1500 260 1518 304"/>
+                  <path class="mse-link" d="M1518 304 L1518 342"/>
+                </g>
+                <rect class="mse-box" x="1466" y="342" width="142" height="70" rx="14"/>
+                <text class="mse-text" x="1537" y="372" text-anchor="middle">MSE</text><text class="mse-text small" x="1537" y="400" text-anchor="middle">field matching</text>
+
+                <g class="axis" transform="translate(1435 612)"><path d="M0 70 L88 70" marker-end="url(#arrow-gray-cap)"/><path d="M0 70 L0 0" marker-end="url(#arrow-gray-cap)"/><text x="98" y="75">Latent dim 1</text><text x="18" y="18">Latent dim 2</text></g>
+              </g>
+
+              <g class="method-legend" transform="translate(86 742)">
+                <rect x="0" y="-42" width="1428" height="64" rx="10"/>
+                <path class="legend-selected" d="M36 -10 L84 -10" marker-end="url(#arrow-blue-cap)"/><text x="104" y="-4">Selected field</text>
+                <path class="legend-unselected" d="M268 -10 L316 -10" marker-end="url(#arrow-red-cap)"/><text x="340" y="-4">Unselected field</text>
+                <path class="legend-rollout" d="M530 -10 L610 -10"/><circle cx="552" cy="-10" r="7"/><circle cx="602" cy="-10" r="7"/><text x="640" y="-4">Student rollout</text>
+                <g transform="translate(850 -10)"><circle class="query-halo" r="22"/><circle class="query-ring" r="12"/><circle class="query-core" r="6"/></g><text x="890" y="-18">Semantic query</text><text x="890" y="8">(low-noise)</text>
+                <g class="legend-off" transform="translate(1095 -10)"><path d="M-20 0 C-20 -20 20 -20 20 0 C20 20 -20 20 -20 0Z"/><circle cx="-8" cy="0" r="3"/><circle cx="5" cy="-7" r="3"/><circle cx="10" cy="7" r="3"/></g><text x="1138" y="-4">Off-policy states</text>
+                <path class="legend-selected" d="M1260 -22 L1310 -22" marker-end="url(#arrow-blue-cap)"/><text x="1330" y="-17">Field velocity</text>
+                <path class="legend-student" d="M1260 8 L1310 8" marker-end="url(#arrow-gray-cap)"/><text x="1330" y="13">Student velocity</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption><span class="figure-caption-label">Animated method overview.</span> DanceOPD uses hard routing to select one frozen capability field, queries it on a low-noise on-policy student state, and matches the selected velocity with a local velocity MSE loss.</figcaption>
+        </figure>
+
+        </div>
+
+        <div class="overview-grid">
+          <div>
+            <h2>Overview</h2>
+            <div class="wb-kicker">Latest manuscript summary</div>
+            <div class="ar-hr"></div>
+            <p class="lead">
+              Modern image generation demands a single model that unifies diverse capabilities, including text-to-image generation, local editing, and global editing. These abilities are rarely naturally aligned: editing can degrade T2I performance, while global and local editing can interfere with each other.
+            </p>
+            <p class="lead">
+              <b>DanceOPD</b> is an on-policy generative field distillation framework for flow-matching models. Each sample is routed to one frozen capability field, one low-noise student-induced state is queried, and the student is trained with a simple velocity MSE objective. The same formulation also absorbs operator-defined fields such as classifier-free guidance.
+            </p>
+          </div>
+          <aside class="paper-takeaways">
+            <div class="takeaway"><b>1</b><span>Hard-routed field per sample</span></div>
+            <div class="takeaway"><b>K=1</b><span>Single semantic-side query</span></div>
+            <div class="takeaway"><b>MSE</b><span>Plain local velocity regression</span></div>
+            <div class="takeaway"><b>OPD</b><span>Teacher queried on student-visited states</span></div>
+          </aside>
+        </div>
+
+
+        <figure class="figure-card overview-exact overview-interactive-image" id="overviewFigure">
+          <div class="overview-image-stage" aria-label="Interactive overview aligned to the exact manuscript figure">
+            <div class="overview-image-content">
+              <img src="assets/figures/fig1_overview_exact.png" alt="DanceOPD overview chart exactly matching the manuscript figure" data-zoom loading="lazy">
+            </div>
+          </div>
+          <div class="overview-image-readout" aria-live="polite">
+            <strong id="overviewReadoutTitle">Exact interactive overview</strong>
+            <span id="overviewReadoutText">The visible figure is the byte-identical manuscript export. Hover or click individual bars and scatter points for EasyChart-style readouts without changing the underlying pixels.</span>
+          </div>
+          <figcaption><span class="figure-caption-label">Overview.</span> Exact high-resolution manuscript overview with coordinate-aligned interactive hotspots.</figcaption>
+        </figure>
+
+        <div class="stats-grid top-stats">
+          <div class="stat-card"><div class="stat-num">5.347</div><div class="stat-label">GEditBench Avg in T2I + Edit Composition</div></div>
+          <div class="stat-card"><div class="stat-num">0.849</div><div class="stat-label">GenEval Overall while preserving T2I</div></div>
+          <div class="stat-card"><div class="stat-num">5.498</div><div class="stat-label">GEditBench Avg in Local + Global Edit Composition</div></div>
+          <div class="stat-card"><div class="stat-num">5.833</div><div class="stat-label">Best CFG absorption diagnostic Avg</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="challenge">
+      <div class="wb-section">
+        <h2>Challenge: capability synthesis is a field-query problem</h2>
+        <div class="wb-kicker">Three query-induced alignment failures</div>
+        <div class="ar-hr"></div>
+        <p class="lead">
+          Once each frozen source is viewed as a velocity field over the shared flow state space, capability synthesis depends on three choices: <b>which</b> field supervises a sample, <b>where</b> the field is queried, and <b>how many</b> states from a rollout are used.
+        </p>
+
+        <div class="challenge-map">
+          <article class="card challenge-card">
+            <div class="card-icon">1</div>
+            <h3>Target-field ambiguity</h3>
+            <p>Softly averaging several source fields can destroy the semantic identity of a capability query. The update may point to no real teacher behavior.</p>
+            <span class="solution-pill">DanceOPD: hard-routed sample-wise field matching</span>
+          </article>
+          <article class="card challenge-card">
+            <div class="card-icon">2</div>
+            <h3>State-distribution mismatch</h3>
+            <p>Data states or teacher trajectories are off-policy for the student. They miss the states the deployed model actually visits at inference time.</p>
+            <span class="solution-pill">DanceOPD: query on stop-gradient student rollout states</span>
+          </article>
+          <article class="card challenge-card">
+            <div class="card-icon">3</div>
+            <h3>Trajectory-query correlation</h3>
+            <p>Dense states from the same rollout share prompt, noise, dynamics, and history. More states can over-weight one correlated path.</p>
+            <span class="solution-pill">DanceOPD: one low-noise semantic-side query</span>
+          </article>
+        </div>
+
+        <div class="regime-grid task-grid">
+          <article class="regime-card"><span class="regime-label">A</span><h3>T2I + Edit Composition</h3><p>Add editing ability while retaining text-to-image prompt following and visual quality.</p></article>
+          <article class="regime-card"><span class="regime-label">B</span><h3>Local + Global Edit Composition</h3><p>Fuse preservation-heavy local editing with transformation-heavy global editing.</p></article>
+          <article class="regime-card"><span class="regime-label">C</span><h3>Realism / Style Absorption</h3><p>Move the student toward a quality or style field while keeping base T2I behavior.</p></article>
+          <article class="regime-card"><span class="regime-label">D</span><h3>CFG Absorption</h3><p>Internalize classifier-free guidance as an operator-defined velocity field.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="method">
+      <div class="wb-section">
+        <h2>Method: DanceOPD</h2>
+        <div class="wb-kicker">Hard-routed semantic-side on-policy velocity matching</div>
+        <div class="ar-hr"></div>
+        <p class="lead">
+          DanceOPD keeps each local target semantically well-defined, queries the target where the current student actually goes, and avoids dense correlated supervision. The full update is a local field-matching step on a stop-gradient rollout state.
+        </p>
+
+        <div class="formula-story" aria-label="Illustrated DanceOPD formulas">
+          <div class="formula-visual-grid">
+            <article class="formula-visual-card">
+              <div class="formula-card-title">1 · Route one sample</div>
+              <p>Keep one semantic target per sample instead of averaging teachers.</p>
+              <svg viewBox="0 0 420 170" class="formula-svg" role="img" aria-label="Hard routed field matching">
+                <defs><marker id="fvArrowBlue" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor"/></marker></defs>
+                <g class="fv-sample" transform="translate(26 42)">
+                  <rect width="86" height="86" rx="18"/>
+                  <path d="M22 23 h42 M22 62 h42 M23 23 v14 M65 23 v14 M23 48 v14 M65 48 v14"/>
+                  <circle cx="43" cy="43" r="12"/>
+                  <text x="43" y="116" text-anchor="middle">(x,c)</text>
+                </g>
+                <path class="fv-arrow" d="M125 84 H183" marker-end="url(#fvArrowBlue)"/>
+                <g class="fv-router" transform="translate(188 34)">
+                  <rect width="72" height="104" rx="16"/>
+                  <circle cx="24" cy="25" r="8"/><circle cx="24" cy="52" r="8"/><circle cx="24" cy="79" r="8"/>
+                  <path d="M24 25 L56 52"/>
+                  <text x="36" y="132" text-anchor="middle">m∼π</text>
+                </g>
+                <path class="fv-arrow" d="M273 84 H325" marker-end="url(#fvArrowBlue)"/>
+                <g class="fv-field" transform="translate(328 42)">
+                  <rect width="68" height="86" rx="18"/>
+                  <path d="M14 58 C27 26 45 24 56 35"/>
+                  <path d="M18 29 C32 20 44 20 56 28"/>
+                  <text x="34" y="116" text-anchor="middle">v<tspan baseline-shift="sub">m</tspan></text>
+                </g>
+              </svg>
+              <div class="formula-chip">m ∼ π(m), &nbsp; (x,c) ∼ D<sub>m</sub></div>
+              <div class="formula-main">u<sub>m</sub>(z,t,c) = v<sub>m</sub>(z,t,c)</div>
+            </article>
+
+            <article class="formula-visual-card accent-teal">
+              <div class="formula-card-title">2 · Query on-policy</div>
+              <p>Ask the frozen field at a state from the current student rollout.</p>
+              <svg viewBox="0 0 420 170" class="formula-svg" role="img" aria-label="On policy student rollout query">
+                <defs><marker id="fvArrowTeal" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor"/></marker></defs>
+                <g class="fv-noise" transform="translate(24 52)"><circle cx="16" cy="18" r="5"/><circle cx="42" cy="8" r="5"/><circle cx="66" cy="26" r="5"/><circle cx="30" cy="48" r="5"/><circle cx="72" cy="56" r="5"/><text x="45" y="92" text-anchor="middle">z<tspan baseline-shift="sub">T</tspan></text></g>
+                <path class="fv-rollout" d="M115 122 C158 92 146 62 198 72 C245 82 250 42 306 48"/>
+                <g class="fv-dots"><circle cx="115" cy="122" r="7"/><circle cx="168" cy="80" r="7"/><circle cx="225" cy="72" r="7"/><circle cx="306" cy="48" r="7"/></g>
+                <g class="fv-query" transform="translate(225 72)"><circle r="23"/><circle r="10"/></g>
+                <path class="fv-arrow teal" d="M315 48 H376" marker-end="url(#fvArrowTeal)"/>
+                <g class="fv-field mini" transform="translate(344 82)"><rect width="54" height="54" rx="14"/><path d="M12 38 C22 16 36 14 44 24"/></g>
+              </svg>
+              <div class="formula-chip">z<sub>0:T</sub><sup>θ</sup> = Rollout(v<sub>θ</sub>; z<sub>T</sub>, c)</div>
+              <div class="formula-main">z&#772;<sub>t</sub> = sg(z<sub>t</sub><sup>θ</sup>)</div>
+            </article>
+
+            <article class="formula-visual-card accent-red">
+              <div class="formula-card-title">3 · Match velocities</div>
+              <p>The selected field and student velocity meet in one local MSE.</p>
+              <svg viewBox="0 0 420 170" class="formula-svg" role="img" aria-label="Velocity MSE matching">
+                <defs><marker id="fvArrowRed" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor"/></marker></defs>
+                <g class="fv-query red" transform="translate(88 82)"><circle r="28"/><circle r="12"/></g>
+                <path class="fv-vector selected" d="M96 76 L184 30" marker-end="url(#fvArrowRed)"/>
+                <path class="fv-vector student" d="M96 92 L196 118" marker-end="url(#fvArrowRed)"/>
+                <text class="fv-label" x="194" y="32">v<tspan baseline-shift="sub">m</tspan></text>
+                <text class="fv-label muted" x="204" y="126">v<tspan baseline-shift="sub">θ</tspan></text>
+                <path class="fv-dash" d="M194 40 C230 64 228 92 202 116"/>
+                <g class="fv-loss" transform="translate(264 48)">
+                  <rect width="122" height="78" rx="18"/>
+                  <text x="61" y="35" text-anchor="middle">MSE</text>
+                  <text x="61" y="58" text-anchor="middle">field match</text>
+                </g>
+              </svg>
+              <div class="formula-chip">single low-noise query, K = 1</div>
+              <div class="formula-main">L = E || v<sub>θ</sub>(z&#772;<sub>t</sub>,t,c) − v<sub>m</sub>(z&#772;<sub>t</sub>,t,c) ||<sub>2</sub><sup>2</sup></div>
+            </article>
+
+            <article class="formula-visual-card accent-gold">
+              <div class="formula-card-title">4 · Absorb operator fields</div>
+              <p>Classifier-free guidance is another velocity field to distill.</p>
+              <svg viewBox="0 0 420 170" class="formula-svg" role="img" aria-label="CFG as an operator-defined field">
+                <defs><marker id="fvArrowGold" markerWidth="6" markerHeight="6" refX="5.2" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="currentColor"/></marker></defs>
+                <g class="fv-field small" transform="translate(30 32)"><rect width="76" height="58" rx="16"/><path d="M15 38 C29 18 48 15 60 28"/><text x="38" y="88" text-anchor="middle">v<tspan baseline-shift="sub">∅</tspan></text></g>
+                <g class="fv-field small" transform="translate(30 104)"><rect width="76" height="58" rx="16"/><path d="M15 38 C29 16 49 28 62 18"/><text x="38" y="88" text-anchor="middle">v<tspan baseline-shift="sub">cond</tspan></text></g>
+                <path class="fv-arrow gold" d="M128 62 C178 62 180 84 222 84" marker-end="url(#fvArrowGold)"/>
+                <path class="fv-arrow gold" d="M128 132 C178 132 180 100 222 100" marker-end="url(#fvArrowGold)"/>
+                <g class="fv-guidance" transform="translate(228 58)">
+                  <rect width="58" height="58" rx="16"/>
+                  <text x="29" y="38" text-anchor="middle">α</text>
+                </g>
+                <path class="fv-arrow gold" d="M298 88 H356" marker-end="url(#fvArrowGold)"/>
+                <g class="fv-field guided" transform="translate(348 50)"><rect width="58" height="76" rx="16"/><path d="M13 48 C27 18 42 20 50 32"/><text x="29" y="104" text-anchor="middle">v<tspan baseline-shift="sub">α</tspan></text></g>
+              </svg>
+              <div class="formula-chip">guided velocity field</div>
+              <div class="formula-main">v<sub>α</sub> = v<sub>∅</sub> + α(v<sub>cond</sub> − v<sub>∅</sub>)</div>
+            </article>
+          </div>
+        </div>
+
+        <div class="method-steps method-steps-wide">
+          <article class="step-card"><div class="step-index">A. Route one capability query</div><h3>m ∼ π(m), (x,c) ∼ D<sub>m</sub></h3><p>Each sample chooses exactly one frozen capability field. Unless stated otherwise, active capability buckets use a uniform route ratio.</p></article>
+          <article class="step-card"><div class="step-index">B. Query on the student trajectory</div><h3>z<sub>0:T</sub><sup>θ</sup> = Rollout(v<sub>θ</sub>; z<sub>T</sub>, c)</h3><p>The target field is queried at <span class="mono">sg(z<sub>t</sub><sup>θ</sup>)</span>, exposing the teacher to student-visited states without backpropagating through the solver.</p></article>
+          <article class="step-card"><div class="step-index">C. Use one semantic-side state</div><h3>K = 1, low-noise query</h3><p>Low-noise states concentrate edit, style, and visual-attribute signals; one query avoids within-rollout correlation.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="results">
+      <div class="wb-section">
+        <h2>Main results</h2>
+        <div class="wb-kicker">Multi-capability synthesis under shared sources</div>
+        <div class="ar-hr"></div>
+        <p class="lead">
+          The desired behavior is not a midpoint between specialists. A single student should strengthen the target capability while preserving the anchor capability under the same deployment model.
+        </p>
+
+        <div class="result-summary-grid">
+          <article class="result-card strong"><span class="regime-label">T2I + Edit</span><h3>5.347 GEditBench / 0.849 GenEval</h3><p>+8.1% over the best reproduced OPD baseline and +8.5% over the edit source on GEditBench.</p></article>
+          <article class="result-card strong"><span class="regime-label">Local + Global Edit</span><h3>5.498 GEditBench / 0.848 GenEval</h3><p>+16.1% over the best competing composition baseline and +7.9% over the local edit source.</p></article>
+        </div>
+
+        <div class="tabs" data-group="main-results">
+          <button class="tab-btn active" data-tab="t2i-edit">T2I + Edit Composition</button>
+          <button class="tab-btn" data-tab="local-global">Local + Global Edit Composition</button>
+          <button class="tab-btn" data-tab="sources">Source models</button>
+        </div>
+
+        <div class="tab-panel active" data-group="main-results" data-panel="t2i-edit">
+          <div class="result-table-wrap">
+            <table class="result-table">
+              <thead><tr><th>Method</th><th>GEditBench Avg ↑</th><th>GenEval Overall ↑</th><th>Takeaway</th></tr></thead>
+              <tbody>
+                <tr><td>Joint training</td><td>4.617</td><td>0.808</td><td>Mixed supervision dilutes edit capability.</td></tr>
+                <tr><td>Weight merge</td><td>0.344</td><td>0.836</td><td>Preserves T2I but collapses editing.</td></tr>
+                <tr><td>Off-policy distill.</td><td>4.528</td><td>0.818</td><td>Teacher states leave a train–inference mismatch.</td></tr>
+                <tr><td>DiffusionOPD</td><td>4.947</td><td>0.833</td><td>Improves editing but below DanceOPD.</td></tr>
+                <tr><td>Flow-OPD</td><td>4.854</td><td>0.814</td><td>OPD baseline still suffers capability interference.</td></tr>
+                <tr class="ours"><td>DanceOPD</td><td>5.347</td><td>0.849</td><td><span class="metric-up">Best edit score and best GenEval in this block.</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-group="main-results" data-panel="local-global">
+          <div class="result-table-wrap">
+            <table class="result-table">
+              <thead><tr><th>Method</th><th>GEditBench Avg ↑</th><th>GenEval Overall ↑</th><th>Takeaway</th></tr></thead>
+              <tbody>
+                <tr><td>Joint training</td><td>4.546</td><td>0.821</td><td>Conflict between preservation and transformation.</td></tr>
+                <tr><td>Weight merge</td><td>4.715</td><td>0.811</td><td>Static parameter interpolation remains a compromise.</td></tr>
+                <tr><td>Off-policy distill.</td><td>4.736</td><td>0.798</td><td>Target ability improves less and T2I drops.</td></tr>
+                <tr><td>DiffusionOPD</td><td>4.661</td><td>0.822</td><td>Below DanceOPD on both metrics.</td></tr>
+                <tr><td>Flow-OPD</td><td>4.679</td><td>0.827</td><td>Stable but not enough to fuse local/global behaviors.</td></tr>
+                <tr class="ours"><td>DanceOPD</td><td>5.498</td><td>0.848</td><td><span class="metric-up">Best capability synthesis in the harder conflict setting.</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" data-group="main-results" data-panel="sources">
+          <div class="result-table-wrap">
+            <table class="result-table">
+              <thead><tr><th>Source</th><th>GEditBench Avg ↑</th><th>GenEval Overall ↑</th><th>Role</th></tr></thead>
+              <tbody>
+                <tr><td>T2I</td><td class="metric-dash">—</td><td>0.832</td><td>Anchor generation field.</td></tr>
+                <tr><td>Edit</td><td>4.930</td><td>0.711</td><td>General edit source.</td></tr>
+                <tr><td>Local Edit</td><td>5.095</td><td>0.793</td><td>Preservation-heavy source.</td></tr>
+                <tr><td>Global Edit</td><td>3.750</td><td>0.808</td><td>Transformation-heavy source.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <figure class="figure-card wide-qual">
+          <img src="assets/figures/fig2.png" alt="Qualitative examples of DanceOPD" data-zoom loading="lazy">
+          <figcaption><span class="figure-caption-label">Qualitative examples.</span> The composed student supports diverse text-to-image and editing behaviors while retaining strong original generative capability.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="diagnostics">
+      <div class="wb-section">
+        <h2>Diagnostics and ablations</h2>
+        <div class="wb-kicker">Why the design choices matter</div>
+        <div class="ar-hr"></div>
+        <p class="lead">
+          The latest ablations show that failures are not simply about loss naming or training length. They trace back to query construction: ambiguous targets, off-policy states, and correlated dense trajectory samples.
+        </p>
+
+        <div class="diagnostic-grid">
+          <article class="card metric-card"><h3>Hard routing vs. soft fusion</h3><p><b>5.751</b> hard-routed MSE vs. <b>4.994</b> soft-teacher MSE. Averaging all teachers erases capability identity.</p></article>
+          <article class="card metric-card"><h3>Low-noise semantic query</h3><p>At 2k steps, low-t reaches <b>5.751</b>, above median-t <b>4.649</b> and high-t <b>4.813</b>.</p></article>
+          <article class="card metric-card"><h3>Single query beats dense queries</h3><p>K=1 reaches <b>5.751</b>; weighted K=4 drops to <b>5.330</b>, and weighted K=16 drops to <b>5.127</b>.</p></article>
+          <article class="card metric-card"><h3>Moderate rollout discretization is enough</h3><p>At 2k steps, 8/16/20/28 rollout steps stay in a practical band; 16 steps gives <b>5.751</b> / <b>0.858</b>.</p></article>
+          <article class="card metric-card"><h3>Plain MSE is stable</h3><p>Velocity MSE reaches <b>5.751</b>, outperforming timestep weighting, KL weighting, DMD-style, SDS-style, and consistency variants.</p></article>
+          <article class="card metric-card"><h3>CFG absorption composes</h3><p>Training α and inference β multiply approximately. Best measured composition is <b>5.833</b>; over-guided αβ=49 drops to <b>4.015</b>.</p></article>
+        </div>
+
+        <div class="gallery-grid diagnostic-figures">
+          <figure class="figure-card"><img src="assets/figures/fig4.png" alt="Field absorption and rollout diagnostics" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Field absorption / CFG / rollout.</span> DanceOPD absorbs realism and CFG fields while rollout discretization remains stable.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/fig5.png" alt="Routing, objective, and dense-query diagnostics" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Routing and dense-query diagnostics.</span> Hard routing with single-query MSE is the strongest default.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/fig6.png" alt="Ablation trends" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Ablation trends.</span> Low-t semantic queries and the strongest relevant initialization are most reliable.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/absord.png" alt="Realism-field absorption" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Realism-field absorption.</span> The student moves toward the realism teacher while preserving prompt content.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="qualitative">
+      <div class="wb-section">
+        <h2>Qualitative gallery</h2>
+        <div class="wb-kicker">T2I, edit, local/global fusion, and training progression</div>
+        <div class="ar-hr"></div>
+        <p class="lead">
+          The gallery follows the manuscript organization: global edits, local/global edits, additional material and style edits, pure T2I preservation, same-object transformations, and local/global training progression.
+        </p>
+
+        <div class="gallery-grid paper-gallery">
+          <figure class="figure-card"><img src="assets/figures/fig7.png" alt="T2I and edit fusion global edits" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Global edits.</span> Strong style and scene transformations while preserving structure.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/fig8.png" alt="T2I and edit fusion local and global edits" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Local and global edits.</span> Content preservation for local changes and stronger global transformations.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/fig9.png" alt="Additional edit cases" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Additional edit cases.</span> Balanced attribute changes across material, lighting, and style.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/t2i_1.png" alt="Text-to-image ability after fusion" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">T2I preservation.</span> Retains text-to-image quality while learning editing.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/fig10.png" alt="Various edits on the same object" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Same-object edits.</span> Diverse object-level transformations with preserved generative capability.</figcaption></figure>
+          <figure class="figure-card"><img src="assets/figures/steps.png" alt="Training progression in local and global edit fusion" data-zoom loading="lazy"><figcaption><span class="figure-caption-label">Training progression.</span> The student progressively absorbs target edit capability while maintaining scene identity.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="citation">
+      <div class="wb-section">
+        <h2>Citation</h2>
+        <div class="wb-kicker">Paper and code coming soon</div>
+        <div class="ar-hr"></div>
+        <p class="lead">arXiv and code links will be added once they are released.</p>
+        <div class="bibtex-box">
+<pre id="bibtex-block">@article{zhou2026danceopd,
+  title   = {DanceOPD: On-Policy Generative Field Distillation},
+  author  = {Zhou, Wei and Zhu, Xiongwei and Xu, Zelin and Dong, Bo and Gong, Lixue and Liang, Yongyuan and Chu, Meng and Qu, Leigang and Kong, Lingdong and Liu, Wei and Chua, Tat-Seng},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</pre>
+        </div>
+        <button class="copy-btn" onclick="copyBibTeX(this)">Copy BibTeX</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Built for DanceOPD. Figures and text are synchronized with the latest Overleaf manuscript content.</p>
+    </footer>
+  </d-article>
+
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <button id="lightboxClose" aria-label="Close image preview">×</button>
+    <img id="lightboxImg" alt="Zoomed figure">
+  </div>
+
+  <script src="static/js/danceopd.js"></script>
+</body>
+</html>
